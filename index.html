@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カウントダウンタイマー</title>
+    <meta name="description" content="年末と夏休みの終わりまでのカウントダウンタイマー。リアルタイムで時間を表示し、ダイナミックなアニメーションを体験できます。">
+    <meta name="keywords" content="カウントダウン, タイマー, 夏休み, 年末, アニメーション">
+    <meta name="author" content="あなたの名前">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(to bottom right, #2c3e50, #3498db);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            overflow: hidden; /* スクロール禁止 */
+        }
+
+        h1, h2 {
+            margin: 0 0 20px;
+        }
+
+        .countdown {
+            margin-bottom: 40px;
+            max-width: 90vw; /* 幅を制限 */
+        }
+
+        #current-time {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        #timer, #summer-timer {
+            display: flex;
+            justify-content: center;
+            flex-wrap: nowrap; /* 要素を常に横並びにする */
+            gap: 20px; /* 要素間のスペース */
+        }
+
+        .time {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            perspective: 1000px;
+            flex: 1; /* 要素が均等に配置されるように設定 */
+            max-width: 120px; /* 最大幅を設定 */
+        }
+
+        .number {
+            display: block;
+            font-size: 2.5em;
+            transition: transform 0.3s ease;
+            transform-style: preserve-3d;
+            position: relative;
+            backface-visibility: hidden;
+        }
+
+        .label {
+            display: block;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+
+        .flip {
+            animation: flip 0.6s forwards;
+        }
+
+        @keyframes flip {
+            0% {
+                transform: rotateX(0);
+            }
+            50% {
+                transform: rotateX(90deg);
+            }
+            51% {
+                transform: rotateX(90deg);
+            }
+            100% {
+                transform: rotateX(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .number {
+                font-size: 2em;
+            }
+
+            .label {
+                font-size: 0.7em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="current-time"></div>
+    <div class="countdown">
+        <h1>カウントダウン</h1>
+        <div id="timer">
+            <div class="time" id="days-wrapper">
+                <div class="number" id="days">00</div>
+                <span class="label">日</span>
+            </div>
+            <div class="time" id="hours-wrapper">
+                <div class="number" id="hours">00</div>
+                <span class="label">時間</span>
+            </div>
+            <div class="time" id="minutes-wrapper">
+                <div class="number" id="minutes">00</div>
+                <span class="label">分</span>
+            </div>
+            <div class="time" id="seconds-wrapper">
+                <div class="number" id="seconds">00</div>
+                <span class="label">秒</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="countdown">
+        <h2 id="summer-title" style="display: none;">夏休みの終わりまでのカウントダウン</h2>
+        <div id="summer-timer" style="display: none;">
+            <div class="time" id="s-days-wrapper">
+                <div class="number" id="s-days">00</div>
+                <span class="label">日</span>
+            </div>
+            <div class="time" id="s-hours-wrapper">
+                <div class="number" id="s-hours">00</div>
+                <span class="label">時間</span>
+            </div>
+            <div class="time" id="s-minutes-wrapper">
+                <div class="number" id="s-minutes">00</div>
+                <span class="label">分</span>
+            </div>
+            <div class="time" id="s-seconds-wrapper">
+                <div class="number" id="s-seconds">00</div>
+                <span class="label">秒</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastDays = 0;
+        let lastHours = 0;
+        let lastMinutes = 0;
+        let lastSeconds = 0;
+
+        let lastSDays = 0;
+        let lastSHours = 0;
+        let lastSMinutes = 0;
+        let lastSSeconds = 0;
+
+        function isLeapYear(year) {
+            return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+        }
+
+        function updateCountdown() {
+            const now = new Date();
+            updateCurrentTime(now);
+            const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+            const timeRemaining = endOfYear - now;
+
+            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+
+            if (timeRemaining <= 0) {
+                resetCountdown();
+            } else {
+                if (days !== lastDays) {
+                    flipElement('days-wrapper', days);
+                    lastDays = days;
+                }
+                if (hours !== lastHours) {
+                    flipElement('hours-wrapper', hours);
+                    lastHours = hours;
+                }
+                if (minutes !== lastMinutes) {
+                    flipElement('minutes-wrapper', minutes);
+                    lastMinutes = minutes;
+                }
+                if (seconds !== lastSeconds) {
+                    flipElement('seconds-wrapper', seconds);
+                    lastSeconds = seconds;
+                }
+            }
+
+            // 夏休みの終わりのカウントダウン
+            const summerEndDate = new Date(now.getFullYear(), 8, 1, 23, 59, 59);
+            if (summerEndDate.getDay() === 0) {
+                summerEndDate.setDate(summerEndDate.getDate());
+            } else {
+                summerEndDate.setDate(summerEndDate.getDate() - 1);
+            }
+
+            const summerRemaining = summerEndDate - now;
+
+            const sDays = Math.floor(summerRemaining / (1000 * 60 * 60 * 24));
+            const sHours = Math.floor((summerRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const sMinutes = Math.floor((summerRemaining % (1000 * 60 * 60)) / (1000 * 60));
+            const sSeconds = Math.floor((summerRemaining % (1000 * 60)) / 1000);
+
+            if ((now.getMonth() === 6 || now.getMonth() === 7) && summerRemaining > 0) {
+                document.getElementById('summer-title').style.display = 'block';
+                document.getElementById('summer-timer').style.display = 'flex';
+                if (sDays !== lastSDays) {
+                    flipElement('s-days-wrapper', sDays);
+                    lastSDays = sDays;
+                }
+                if (sHours !== lastSHours) {
+                    flipElement('s-hours-wrapper', sHours);
+                    lastSHours = sHours;
+                }
+                if (sMinutes !== lastSMinutes) {
+                    flipElement('s-minutes-wrapper', sMinutes);
+                    lastSMinutes = sMinutes;
+                }
+                if (sSeconds !== lastSSeconds) {
+                    flipElement('s-seconds-wrapper', sSeconds);
+                    lastSSeconds = sSeconds;
+                }
+            } else {
+                document.getElementById('summer-title').style.display = 'none';
+                document.getElementById('summer-timer').style.display = 'none';
+                resetSummerCountdown();
+            }
+        }
+
+        function updateCurrentTime(now) {
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const date = String(now.getDate()).padStart(2, '0');
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            const day = dayNames[now.getDay()];
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+
+            document.getElementById('current-time').textContent = `${year}年${month}月${date}日 ${day}曜日 ${hours}時${minutes}分${seconds}秒`;
+        }
+
+        function flipElement(wrapperId, newValue) {
+            const element = document.getElementById(wrapperId).querySelector('.number');
+            element.classList.add('flip');
+            setTimeout(() => {
+                element.textContent = String(newValue).padStart(2, '0');
+                element.classList.remove('flip');
+            }, 300);
+        }
+
+        function resetCountdown() {
+            const elements = ['days', 'hours', 'minutes', 'seconds'];
+            elements.forEach(id => {
+                document.getElementById(id).textContent = '00';
+            });
+            lastDays = lastHours = lastMinutes = lastSeconds = 0;
+        }
+
+        function resetSummerCountdown() {
+            const elements = ['s-days', 's-hours', 's-minutes', 's-seconds'];
+            elements.forEach(id => {
+                document.getElementById(id).textContent = '00';
+            });
+            lastSDays = lastSHours = lastSMinutes = lastSSeconds = 0;
+        }
+
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+    </script>
+</body>
+</html>
