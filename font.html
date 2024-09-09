@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Font Installer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f8f8;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #444;
+            margin-bottom: 20px;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+        label {
+            font-size: 16px;
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="file"], input[type="text"] {
+            margin-top: 5px;
+            padding: 8px;
+            width: 90%;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #downloadLink {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+        #downloadLink:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>iOSフォントインストールツール</h1>
+    <label>ttf/otfをインストールするためのプロファイルを作成します。</label>
+    <form id="fontForm">
+        <label for="profileName">プロファイル名を入力:</label>
+        <input type="text" id="profileName" placeholder="例: My Font Profile" required>
+
+        <label for="organization">Organization名を入力:</label>
+        <input type="text" id="organization" placeholder="例: My Organization" required>
+
+        <div id="fontInputs">
+            <div class="font-input">
+                <label>フォントファイル（.ttf, .otf）を選択:</label>
+                <input type="file" accept=".ttf, .otf" required>
+            </div>
+        </div>
+
+        <button type="button" onclick="addFontInput()">フォントを追加</button>
+        <br><br>
+        <button type="button" onclick="generateProfile()">プロファイルを生成</button>
+    </form>
+    <br>
+    <a id="downloadLink" style="display: none;">プロファイルをダウンロード</a>
+
+    <script>
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function addFontInput() {
+            const fontInputs = document.getElementById('fontInputs');
+            const newFontInput = document.createElement('div');
+            newFontInput.className = 'font-input';
+            newFontInput.innerHTML = `
+                <label>フォントファイル（.ttf, .otf）を選択:</label>
+                <input type="file" accept=".ttf, .otf" required>
+            `;
+            fontInputs.appendChild(newFontInput);
+        }
+
+        function generateProfile() {
+            const profileName = document.getElementById('profileName').value.trim();
+            const organization = document.getElementById('organization').value.trim();
+            const fontInputs = document.querySelectorAll('#fontInputs input[type="file"]');
+
+            if (!profileName || !organization) {
+                alert('プロファイル名とOrganization名を入力してください。');
+                return;
+            }
+
+            if (fontInputs.length === 0) {
+                alert('少なくとも1つのフォントを追加してください。');
+                return;
+            }
+
+            const payloadContent = [];
+            let filesProcessed = 0;
+
+            fontInputs.forEach((input, index) => {
+                const file = input.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const base64Font = btoa(reader.result);
+                    const fontName = file.name.split('.')[0];
+                    const uuid1 = generateUUID();
+
+                    payloadContent.push(`
+                    <dict>
+                        <key>Name</key>
+                        <string>${fontName}</string>
+                        <key>Font</key>
+                        <data>${base64Font}</data>
+                        <key>PayloadType</key>
+                        <string>com.apple.font</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.2ttf.version.${uuid1}</string>
+                        <key>PayloadUUID</key>
+                        <string>${uuid1}</string>
+                        <key>PayloadVersion</key>
+                        <integer>1</integer>
+                    </dict>
+                    `);
+
+                    filesProcessed++;
+                    if (filesProcessed === fontInputs.length) {
+                        createProfile(profileName, organization, payloadContent);
+                    }
+                };
+
+                reader.readAsBinaryString(file);
+            });
+        }
+
+        function createProfile(profileName, organization, payloadContent) {
+            const uuid2 = generateUUID();
+
+            const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        ${payloadContent.join('')}
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>${profileName}</string>
+    <key>PayloadUUID</key>
+    <string>${uuid2}</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadIdentifier</key>
+    <string>com.2ttf.skus.${uuid2}</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadOrganization</key>
+    <string>${organization}</string>
+</dict>
+</plist>`;
+
+            const blob = new Blob([plist], { type: 'application/x-apple-aspen-config' });
+            const link = document.getElementById('downloadLink');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${profileName}.mobileconfig`;
+            link.style.display = 'inline';
+            link.textContent = 'プロファイルをダウンロード';
+        }
+    </script>
+</body>
+</html>
